@@ -11,12 +11,12 @@ We have ~300 failure cases across 6 trajectory files (3 strategies x 2 domains f
 
 ## How This Maps to Phase 2 Requirements
 
-| Phase 2 Requirement | What This Script Produces |
-|---|---|
-| **Error analysis report with quantitative breakdown** (10 pts) | `results/combined_summary.json` — counts and percentages per error category, per strategy, per domain. Paste into report. |
-| **Plots comparing error types across baselines/model sizes** (part of 10 pts) | `results/plots/errors_by_strategy.png`, `errors_by_domain.png`, `error_breakdown_all.png` — ready for the report. |
-| **5 representative failure trajectory JSONs per error category** (10 pts) | `results/examples/representative_examples.json` — auto-extracted with task_id, instruction, ground truth, agent actions, and explanation. |
-| **Multi-agent system proposal** (20 pts) | NOT produced by this script. But the error distribution tells you which errors are most common, so your PATTS proposal can say: "Policy violations account for X% of failures -> Policy Validator module addresses this." |
+| Phase 2 Requirement                                                           | What This Script Produces                                                                                                                                                                                                 |
+| ----------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Error analysis report with quantitative breakdown** (10 pts)                | `results/combined_summary.json` — counts and percentages per error category, per strategy, per domain. Paste into report.                                                                                                 |
+| **Plots comparing error types across baselines/model sizes** (part of 10 pts) | `results/plots/errors_by_strategy.png`, `errors_by_domain.png`, `error_breakdown_all.png` — ready for the report.                                                                                                         |
+| **5 representative failure trajectory JSONs per error category** (10 pts)     | `results/examples/representative_examples.json` — auto-extracted with task_id, instruction, ground truth, agent actions, and explanation.                                                                                 |
+| **Multi-agent system proposal** (20 pts)                                      | NOT produced by this script. But the error distribution tells you which errors are most common, so your PATTS proposal can say: "Policy violations account for X% of failures -> Policy Validator module addresses this." |
 
 ---
 
@@ -63,6 +63,9 @@ python classify_errors.py --provider anthropic --force
 **Time estimate:** ~5-10 minutes for all 6 files (14B). ~$5-10 in API costs.
 
 **Resume support:** If the script crashes mid-run, just re-run the same command. It saves progress after each classification and picks up where it left off.
+
+- Partially done files ex. `results/14b_ReAct_airline.partial.json` , are picked up on the specific task that it left off on next run
+- When fully done, filenames will look like this: `results/14b_ReAct_airline.json`
 
 ---
 
@@ -125,17 +128,17 @@ results/
 
 These are **our own categories** (the spec says: do NOT use the tau-bench paper's taxonomy). Edit the `ERROR_TAXONOMY` dict at the top of `classify_errors.py` to change them.
 
-| Category | What It Means |
-|---|---|
-| `wrong_tool` | Called the wrong tool entirely |
-| `wrong_arguments` | Right tool, wrong parameters |
-| `policy_violation` | Broke a domain rule (cancellation, modification, compensation, auth) |
-| `incomplete_execution` | Didn't finish all required actions for a multi-step task |
-| `premature_escalation` | Transferred to human when it could have handled it |
-| `information_error` | Gave user wrong info that affected the outcome |
-| `reasoning_failure` | Misunderstood user intent or made wrong plan |
-| `user_simulator_error` | User simulator's fault, not agent's |
-| `context_or_format_error` | Context overflow, malformed JSON, infrastructure issue |
+| Category                  | What It Means                                                        |
+| ------------------------- | -------------------------------------------------------------------- |
+| `wrong_tool`              | Called the wrong tool entirely                                       |
+| `wrong_arguments`         | Right tool, wrong parameters                                         |
+| `policy_violation`        | Broke a domain rule (cancellation, modification, compensation, auth) |
+| `incomplete_execution`    | Didn't finish all required actions for a multi-step task             |
+| `premature_escalation`    | Transferred to human when it could have handled it                   |
+| `information_error`       | Gave user wrong info that affected the outcome                       |
+| `reasoning_failure`       | Misunderstood user intent or made wrong plan                         |
+| `user_simulator_error`    | User simulator's fault, not agent's                                  |
+| `context_or_format_error` | Context overflow, malformed JSON, infrastructure issue               |
 
 ---
 
@@ -155,18 +158,19 @@ The LLM compares expected vs actual behavior and picks one category. This is ess
 
 ## All CLI Options
 
-| Flag | Default | Description |
-|---|---|---|
-| `--provider` | (required) | `anthropic` or `openai` |
-| `--model` | auto | Model name (claude-sonnet-4-5-20250929 / gpt-4o) |
-| `--model-size` | `14b` | Which Qwen3 size to analyze |
-| `--sample-size` | `50` | Max unique failures per file |
-| `--trajectory-dir` | auto-detected | Path to JSON_trajectories |
-| `--output-dir` | `results/` | Where to save output |
-| `--delay` | `0.5` | Seconds between API calls |
-| `--force` | off | Re-run even if results exist |
-| `--dry-run` | off | Print prompt, don't call API |
-| `--seed` | `42` | Random seed for sampling |
+| Flag               | Default       | Description                                      |
+| ------------------ | ------------- | ------------------------------------------------ |
+| `--provider`       | (required)    | `anthropic` or `openai`                          |
+| `--model`          | auto          | Model name (claude-sonnet-4-5-20250929 / gpt-4o) |
+| `--model-size`     | `14b`         | Which Qwen3 size to analyze                      |
+| `--sample-size`    | `50`          | Max unique failures per file                     |
+| `--trajectory-dir` | auto-detected | Path to JSON_trajectories                        |
+| `--output-dir`     | `results/`    | Where to save output                             |
+| `--delay`          | `0.5`         | Seconds between API calls                        |
+| `--force`          | off           | Re-run even if results exist                     |
+| `--dry-run`        | off           | Print prompt, don't call API                     |
+| `--seed`           | `42`          | Random seed for sampling                         |
+| `--debug`          | False         | Adds Debug statements at each function           |
 
 ---
 
