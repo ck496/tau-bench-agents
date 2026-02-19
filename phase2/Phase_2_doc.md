@@ -8,9 +8,11 @@
 
 ### 1.1 Methodology
 
-We classified **290 unique failure cases** across 6 trajectory configurations (3 strategies x 2 domains) for Qwen3-14B. Each failure was sent to Claude Sonnet 4.5 via the Anthropic API with a structured prompt containing: (1) the user's goal, (2) ground truth actions, (3) domain policy rules, (4) the full agent conversation, and (5) our custom error taxonomy. The LLM compared expected vs. actual behavior and assigned exactly one category per failure.
+We focused our analysis on **Qwen3-14B**, the model size with the lowest crash rate (0.3%) and highest behavioral signal. Across all 6 configurations (3 strategies x 2 domains), 14B produced ~1,835 total failures. We sampled **290 unique failure cases** (50 per config, fewer where configs had less) and classified each using Claude Sonnet 4.5 via the Anthropic API. Each failure was sent with a structured prompt containing: (1) the user's goal, (2) ground truth actions, (3) domain policy rules, (4) the full agent conversation, and (5) our custom error taxonomy. The LLM compared expected vs. actual behavior and assigned exactly one category per failure.
 
 **Why LLM-based classification?** With ~290 cases, manual labeling would take hours and introduce inconsistency. Sending every case to the same model with the same prompt and same taxonomy gives reproducible, consistent results. This mirrors tau-bench's own `auto_error_identification.py` approach but uses our custom taxonomy.
+
+**Two types of failures, two scripts.** Not all failures are behavioral errors. Entries that crash before the agent can act — context window overflows, API timeouts, code bugs — have empty trajectories (`traj: []`) and an `info.error` field instead of `info.task`. These *infrastructure crashes* are detected programmatically by `analyze_crashes.py`, which parses error messages and extracts token counts. They never reach the LLM classifier. The remaining failures have full conversation trajectories and represent genuine *behavioral errors* — these are the 290 cases classified by `classify_errors.py` via Claude Sonnet 4.5. For 14B, only 7 of 2,475 entries crashed (0.3%), so the two populations are nearly disjoint. Full crash analysis is in `context_crash_analysis_summary.md`.
 
 ### 1.2 Error Taxonomy
 
@@ -39,9 +41,14 @@ We defined 9 categories (the spec requires our own taxonomy, not the tau-bench p
 | **Reasoning Failure**    | **19.0%** | 22.0%         | 16.0%        |
 | **Wrong Arguments**      | **18.7%** | 18.6%         | 18.7%        |
 | **Wrong Tool**           | **4.9%**  | 7.9%          | 2.0%         |
-| **Premature Escalation** | **5.1%**  | 8.7%          | 2.0%         |
+| **Premature Escalation** | **5.0%**  | 8.7%          | 1.3%         |
 | **User Simulator Error** | **1.0%**  | 2.1%          | 0.0%         |
 | **Information Error**    | **0.3%**  | 0.0%          | 0.7%         |
+| **Context/Format Error** | **0.0%**  | 0.0%          | 0.0%         |
+
+> **Note:** Context/Format Error is 0.0% because context window overflows, API timeouts, and infrastructure crashes produce empty trajectories (`traj: []`) and never reach the classifier. These 7 crashed entries (0.3% of all 14B runs) are analyzed separately in the crash analysis — see `results/crash_analysis_summary.md`.
+
+**Context pressure without crashing:** Conversations that stay under the 32,768 token limit can still degrade from context pressure. The 10 longest non-crashed 14B conversations (all 62 turns, all failures) suggest that as conversations grow, the model attends less to earlier policy rules and user details — manifesting as reasoning failures, incomplete execution, and wrong arguments rather than an explicit context overflow.
 
 **The top 4 categories (policy violation, incomplete execution, reasoning failure, wrong arguments) account for ~89% of all failures.** These are the targets for our multi-agent proposal.
 
@@ -79,7 +86,7 @@ Below are representative failures for each major error category. Full trajectory
 
 > **Task 24, ACT Airline:** User asked to change flights on reservation HXDUBJ. The agent modified the flights without checking the cabin class. Per airline policy, basic economy tickets cannot be modified. The agent should have refused the request and explained the restriction.
 
-#### Incomplete Execution -- "Handled one exchange, forgot the second"
+#### Incomplete Execution -- "Never started a multi-step exchange task"
 
 > **Task 14, FC Retail:** User needed two separate exchanges (hiking boots + jigsaw puzzle). The agent never even started -- conversation shows user messages but no agent actions. The agent failed to authenticate the user or take any of the required steps.
 
@@ -94,6 +101,18 @@ Below are representative failures for each major error category. Full trajectory
 #### Premature Escalation -- "Transferred to human despite having the user_id"
 
 > **Task 0, ReAct Airline:** The agent transferred to a human claiming it needed the user's ID, but the user goal clearly states "Your user id is mia_li_3668". The agent should have asked the user directly or extracted it from the conversation.
+
+#### Wrong Tool -- "Canceled the wrong order entirely"
+
+> **Task 59, ACT Retail:** User wanted to cancel order #W8268610, but the agent canceled #W2702727 instead. The agent retrieved the user's details, saw multiple orders, and picked the wrong one — calling `cancel_pending_order` on an order the user never mentioned.
+
+#### Information Error -- "Calculated wrong refund amount"
+
+> **Task 28, ACT Retail:** User asked about a potential refund. The agent calculated $2,441.42, but the correct amount was $918.43. The wrong number led the user to make a decision based on incorrect information.
+
+#### User Simulator Error -- "Simulator reversed roles mid-conversation"
+
+> **Task 45, FC Airline:** The user simulator switched roles and began acting as the agent, issuing tool calls and responding to itself. This is not an agent failure — it's a limitation of using Qwen3-32B as the user simulator.
 
 ---
 
@@ -110,7 +129,7 @@ Our error analysis reveals four failure modes that account for 89% of errors. Ea
 | Policy Violation     | 28.5%       | Agent has policies in system prompt but ignores them under task pressure | **Policy Validator** -- dedicated agent that checks actions against rules before execution |
 | Incomplete Execution | 22.6%       | Agent loses track of multi-step plans mid-conversation                   | **Task Planner** -- decomposes tasks upfront, tracks completion                            |
 | Reasoning Failure    | 19.0%       | Agent misreads user intent or makes flawed plans                         | **Context Engineer** -- structures and enriches context before reasoning                   |
-| Wrong Arguments      | 18.7%       | Agent picks wrong parameter values for correct tools                     | **Argument Verifier** -- validates tool arguments against ground truth schemas             |
+| Wrong Arguments      | 18.7%       | Agent picks wrong parameter values for correct tools                     | **Argument Verifier** -- validates tool arguments against tool schemas and domain constraints             |
 
 ### 2.2 Architecture
 
@@ -139,7 +158,42 @@ User Message
 Response to User
 ```
 
-### 2.3 How Each Agent Works
+### 2.3 Orchestration Pseudocode
+
+```python
+def pace_orchestrate(user_message, conversation_history):
+    # Stage 1: Context Engineering
+    entities = context_engineer.extract_entities(user_message)
+    relevant_policies = rag_retrieve(entities.task_type, policy_index)
+    context = StructuredContext(entities, relevant_policies, conversation_history)
+
+    # Stage 2: Task Planning
+    plan = task_planner.decompose(context)  # -> [Step1, Step2, ...]
+
+    # Stage 3: Execute each step with validation
+    for step in plan.steps:
+        proposed_action = executor.propose_action(step, context)
+
+        # Pre-execution checks (run in parallel)
+        policy_ok = policy_validator.check(proposed_action, relevant_policies)
+        args_ok = argument_verifier.validate(proposed_action, entities, tool_schemas)
+
+        if not policy_ok:
+            return f"Cannot proceed: {policy_ok.violation_reason}"
+        if not args_ok:
+            proposed_action = executor.revise_action(step, args_ok.feedback)
+
+        # Execute and verify
+        result = execute_tool(proposed_action)
+        step.status = step_verifier.evaluate(result, step.expected_outcome)
+
+        if step.status == "failed":
+            plan = task_planner.replan(context, plan, step)  # re-plan from failure
+
+    return generate_response(plan, context)
+```
+
+### 2.4 How Each Agent Works
 
 #### Context Engineer (Pre-Processing)
 
@@ -151,7 +205,7 @@ Response to User
 - Uses **RAG** to retrieve only the relevant policy sections for this specific task type (e.g., "cancellation policies" for a cancellation request) rather than stuffing the entire policy document into the prompt
 - Produces a structured context block that downstream agents consume
 
-**Design pattern:** Context Engineering + RAG (Retrieval-Augmented Generation). Instead of relying on the model to parse a 17K-token system prompt, we pre-retrieve the 2-3 relevant policy paragraphs. This is the same principle behind GraphRAG for regulatory compliance -- structured retrieval over flat text dumps.
+**Design pattern:** Context Engineering + RAG (Retrieval-Augmented Generation). Instead of relying on the model to parse a 17K-token system prompt, we pre-retrieve the 2-3 relevant policy paragraphs.
 
 **Why RAG over full-prompt policies:** Our system prompts are ~17K tokens. The agent must find the one rule that applies (e.g., "basic economy cannot be modified") among dozens. RAG retrieves exactly the relevant rules, reducing cognitive load and token cost.
 
@@ -205,7 +259,7 @@ Response to User
 
 **Design pattern:** Reflection (Gulli) + AgentPro-style process supervision. "Enhancing LLM Agents with Automated Process Supervision" (EMNLP 2025) shows that step-level verification catches errors that end-to-end evaluation misses.
 
-### 2.4 Inter-Agent Communication
+### 2.5 Inter-Agent Communication
 
 Agents communicate through a **shared state object** (following LangGraph's centralized state pattern):
 
@@ -222,9 +276,9 @@ state = {
 }
 ```
 
-This follows the **coordinator pattern** (Gulli): a central orchestrator routes tasks to specialist agents based on the current state. In production, this could use Google's **A2A (Agent-to-Agent) protocol** for standardized agent discovery and task delegation -- each agent publishes an Agent Card describing its capabilities, and the orchestrator routes based on those cards.
+This follows the **coordinator pattern** (Gulli): a central orchestrator routes tasks to specialist agents based on the current state. For production deployments, protocols like Google's A2A could standardize inter-agent communication, but for our scope a shared state dict is sufficient.
 
-### 2.5 Why This Architecture
+### 2.6 Why This Architecture
 
 **Grounded in our data, not hypothetical:** Every component maps directly to an observed failure mode. We're not adding complexity for its own sake -- each agent exists because a specific error category demands it.
 
@@ -237,7 +291,7 @@ This follows the **coordinator pattern** (Gulli): a central orchestrator routes 
 - _ReConcile_ (NeurIPS 2024): Multi-agent discussion + reflection improves collaborative reasoning
 - _AgenTRIM_ (2025): Runtime tool validation prevents policy-violating actions
 
-### 2.6 Expected Impact
+### 2.7 Expected Impact
 
 | Error Category       | Current % | Target Reduction | Mechanism                                                  |
 | -------------------- | --------- | ---------------- | ---------------------------------------------------------- |
@@ -248,7 +302,7 @@ This follows the **coordinator pattern** (Gulli): a central orchestrator routes 
 
 **Conservative estimate:** If PACE reduces the top-4 error categories by 40-50% on average, overall pass^1 for Qwen3-14B could improve from ~0.15-0.34 to ~0.25-0.50 depending on strategy and domain.
 
-### 2.7 Implementation Plan (Phase 3)
+### 2.8 Implementation Plan (Phase 3)
 
 1. **Week 1:** Implement Context Engineer + Task Planner using LangGraph for orchestration
 2. **Week 1-2:** Implement Policy Validator as a guardrail agent with RAG-based policy retrieval
@@ -264,6 +318,15 @@ Marko:
 Jay:
 Mohit:
 Han:
+
+---
+
+## 4. Limitations
+
+- **LLM classifier bias:** Claude Sonnet 4.5 may systematically favor certain categories. We mitigate this with a fixed taxonomy and structured prompt, but inter-annotator agreement with human labels is unknown.
+- **14B focus:** We analyzed only Qwen3-14B in depth. Smaller models (4B, 8B) have much higher crash rates (up to 13.6%) and likely different error distributions, but their high crash rates make behavioral analysis less reliable.
+- **Single-label classification:** Each failure is assigned exactly one category. In practice, some failures involve multiple issues (e.g., a reasoning failure that leads to a policy violation). Multi-label classification could capture these interactions.
+- **Sampling:** We classified 290 of ~1,835 failures (16%). While stratified across configs, rarer error categories (information_error, user_simulator_error) may be underrepresented.
 
 ---
 
