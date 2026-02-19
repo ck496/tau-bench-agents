@@ -881,11 +881,12 @@ def main():
     if DEBUG: print(f"[DEBUG] main(provider={args.provider}, model={args.model}, model_size={args.model_size}, sample_size={args.sample_size}, force={args.force}, dry_run={args.dry_run}, seed={args.seed})")
 
     # Resolve paths relative to this script's location.
-    # Default trajectory dir: phase_2/JSON_trajectories/ (one level up from this script)
-    # Default output dir: phase_2/error_analysis/results/ (next to this script)
+    # Script lives at:   phase2/error_analysis/classify_errors.py
+    # Trajectories at:   phase1/JSON_trajectories/
+    # So: up 2 levels to repo root, then into phase1/JSON_trajectories
     script_dir = Path(__file__).resolve().parent
     traj_dir = Path(args.trajectory_dir) if args.trajectory_dir else (
-        script_dir.parent / "JSON_trajectories"
+        script_dir.parent.parent / "phase1" / "JSON_trajectories"
     )
     output_dir = Path(args.output_dir) if args.output_dir else (
         script_dir / "results"
