@@ -1,160 +1,168 @@
 {
-  "14b_ACT_airline": {
-    "incomplete_execution": {
+  "8b_ACT_airline": {
+    "reasoning_failure": {
+      "count": 12,
+      "percentage": 26.1
+    },
+    "premature_escalation": {
       "count": 11,
       "percentage": 23.9
     },
-    "reasoning_failure": {
-      "count": 10,
-      "percentage": 21.7
+    "incomplete_execution": {
+      "count": 8,
+      "percentage": 17.4
     },
     "policy_violation": {
+      "count": 8,
+      "percentage": 17.4
+    },
+    "wrong_arguments": {
+      "count": 4,
+      "percentage": 8.7
+    },
+    "wrong_tool": {
+      "count": 2,
+      "percentage": 4.3
+    },
+    "parse_error": {
+      "count": 1,
+      "percentage": 2.2
+    }
+  },
+  "8b_ACT_retail": {
+    "incomplete_execution": {
+      "count": 14,
+      "percentage": 28.0
+    },
+    "reasoning_failure": {
+      "count": 11,
+      "percentage": 22.0
+    },
+    "wrong_arguments": {
+      "count": 10,
+      "percentage": 20.0
+    },
+    "policy_violation": {
+      "count": 8,
+      "percentage": 16.0
+    },
+    "premature_escalation": {
+      "count": 5,
+      "percentage": 10.0
+    },
+    "wrong_tool": {
+      "count": 2,
+      "percentage": 4.0
+    }
+  },
+  "8b_ReAct_airline": {
+    "reasoning_failure": {
+      "count": 16,
+      "percentage": 35.6
+    },
+    "policy_violation": {
+      "count": 9,
+      "percentage": 20.0
+    },
+    "premature_escalation": {
+      "count": 8,
+      "percentage": 17.8
+    },
+    "incomplete_execution": {
+      "count": 6,
+      "percentage": 13.3
+    },
+    "wrong_arguments": {
+      "count": 4,
+      "percentage": 8.9
+    },
+    "api_error": {
+      "count": 1,
+      "percentage": 2.2
+    },
+    "information_error": {
+      "count": 1,
+      "percentage": 2.2
+    }
+  },
+  "8b_ReAct_retail": {
+    "policy_violation": {
+      "count": 17,
+      "percentage": 34.0
+    },
+    "reasoning_failure": {
+      "count": 14,
+      "percentage": 28.0
+    },
+    "incomplete_execution": {
+      "count": 11,
+      "percentage": 22.0
+    },
+    "premature_escalation": {
+      "count": 6,
+      "percentage": 12.0
+    },
+    "wrong_arguments": {
+      "count": 2,
+      "percentage": 4.0
+    }
+  },
+  "8b_FC_airline": {
+    "reasoning_failure": {
+      "count": 12,
+      "percentage": 26.1
+    },
+    "policy_violation": {
+      "count": 12,
+      "percentage": 26.1
+    },
+    "incomplete_execution": {
       "count": 9,
       "percentage": 19.6
     },
     "wrong_arguments": {
-      "count": 8,
-      "percentage": 17.4
-    },
-    "premature_escalation": {
-      "count": 4,
-      "percentage": 8.7
+      "count": 7,
+      "percentage": 15.2
     },
     "wrong_tool": {
       "count": 3,
       "percentage": 6.5
     },
-    "user_simulator_error": {
+    "premature_escalation": {
+      "count": 2,
+      "percentage": 4.3
+    },
+    "information_error": {
       "count": 1,
       "percentage": 2.2
     }
   },
-  "14b_ACT_retail": {
+  "8b_FC_retail": {
     "incomplete_execution": {
-      "count": 15,
-      "percentage": 30.0
-    },
-    "policy_violation": {
-      "count": 12,
-      "percentage": 24.0
-    },
-    "wrong_arguments": {
-      "count": 10,
-      "percentage": 20.0
+      "count": 17,
+      "percentage": 34.0
     },
     "reasoning_failure": {
-      "count": 10,
-      "percentage": 20.0
-    },
-    "wrong_tool": {
-      "count": 2,
-      "percentage": 4.0
-    },
-    "information_error": {
-      "count": 1,
-      "percentage": 2.0
-    }
-  },
-  "14b_ReAct_airline": {
-    "policy_violation": {
-      "count": 12,
-      "percentage": 27.3
-    },
-    "wrong_arguments": {
-      "count": 9,
-      "percentage": 20.5
-    },
-    "reasoning_failure": {
-      "count": 8,
-      "percentage": 18.2
-    },
-    "incomplete_execution": {
-      "count": 6,
-      "percentage": 13.6
-    },
-    "premature_escalation": {
-      "count": 5,
-      "percentage": 11.4
-    },
-    "wrong_tool": {
-      "count": 4,
-      "percentage": 9.1
-    }
-  },
-  "14b_ReAct_retail": {
-    "incomplete_execution": {
-      "count": 16,
-      "percentage": 32.0
+      "count": 14,
+      "percentage": 28.0
     },
     "policy_violation": {
-      "count": 15,
-      "percentage": 30.0
-    },
-    "wrong_arguments": {
       "count": 11,
       "percentage": 22.0
     },
-    "reasoning_failure": {
-      "count": 6,
-      "percentage": 12.0
-    },
-    "wrong_tool": {
-      "count": 1,
-      "percentage": 2.0
-    },
-    "premature_escalation": {
-      "count": 1,
-      "percentage": 2.0
-    }
-  },
-  "14b_FC_airline": {
-    "reasoning_failure": {
-      "count": 13,
-      "percentage": 26.0
-    },
-    "policy_violation": {
-      "count": 12,
-      "percentage": 24.0
-    },
     "wrong_arguments": {
-      "count": 9,
-      "percentage": 18.0
-    },
-    "incomplete_execution": {
-      "count": 7,
-      "percentage": 14.0
-    },
-    "wrong_tool": {
       "count": 4,
       "percentage": 8.0
-    },
-    "premature_escalation": {
-      "count": 3,
-      "percentage": 6.0
     },
     "user_simulator_error": {
       "count": 2,
       "percentage": 4.0
-    }
-  },
-  "14b_FC_retail": {
-    "policy_violation": {
-      "count": 23,
-      "percentage": 46.0
-    },
-    "incomplete_execution": {
-      "count": 11,
-      "percentage": 22.0
-    },
-    "reasoning_failure": {
-      "count": 8,
-      "percentage": 16.0
-    },
-    "wrong_arguments": {
-      "count": 7,
-      "percentage": 14.0
     },
     "premature_escalation": {
+      "count": 1,
+      "percentage": 2.0
+    },
+    "context_or_format_error": {
       "count": 1,
       "percentage": 2.0
     }

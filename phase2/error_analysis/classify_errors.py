@@ -96,7 +96,9 @@ DEFAULT_MODELS = {
 
 def discover_files(base_dir, model_size="14b"):
     """Find all trajectory files for a model size. Returns [(path, config_name), ...]"""
-    if DEBUG: print(f"[DEBUG] discover_files(base_dir={base_dir}, model_size={model_size})")
+    if DEBUG:
+        print(
+            f"[DEBUG] discover_files(base_dir={base_dir}, model_size={model_size})")
     base = Path(base_dir)
     if not base.exists():
         # Our JSON_trajectories dir accidentally has a trailing space in its name.
@@ -129,9 +131,18 @@ def discover_files(base_dir, model_size="14b"):
                 if not subdir.is_dir():
                     continue
                 name = subdir.name.lower()
+                fromated_model_dir_string = "_" + model_size.lower()
+                if DEBUG:
+                    print(
+                        f"[DEBUG] discover_files:  fromated_model_dir_string = {fromated_model_dir_string}")
                 # startswith() prevents "act_" from matching "react_" directories
                 if (name.startswith(f"{strategy_key}_{domain}_")
-                        and model_size.lower() in name):
+                        and fromated_model_dir_string in name):
+
+                    if DEBUG:
+                        print(
+                            f"[DEBUG] discover_files: Subdir to get json form  = {name}")
+
                     # Each subdirectory should have exactly one JSON file inside
                     jsons = sorted(subdir.glob("*.json"))
                     if jsons:
@@ -142,7 +153,8 @@ def discover_files(base_dir, model_size="14b"):
             if not found:
                 print(f"  WARNING: No file found for {config_name}")
 
-    if DEBUG: print(f"[DEBUG] discover_files -> found {len(files)} files")
+    if DEBUG:
+        print(f"[DEBUG] discover_files -> found {len(files)} files")
     return files
 
 
@@ -159,7 +171,9 @@ def discover_files(base_dir, model_size="14b"):
 
 def load_and_sample(filepath, sample_size=50, seed=42):
     """Load trajectory JSON, return sampled unique failure cases."""
-    if DEBUG: print(f"[DEBUG] load_and_sample(filepath={Path(filepath).name}, sample_size={sample_size}, seed={seed})")
+    if DEBUG:
+        print(
+            f"[DEBUG] load_and_sample(filepath={Path(filepath).name}, sample_size={sample_size}, seed={seed})")
     with open(filepath) as f:
         data = json.load(f)
 
@@ -185,7 +199,9 @@ def load_and_sample(filepath, sample_size=50, seed=42):
 
     # Deterministic sample (fixed seed = same sample on re-run = safe to resume)
     random.seed(seed)
-    if DEBUG: print(f"[DEBUG] load_and_sample -> {len(data)} total entries, {len(failures)} failures, {len(unique)} unique task_ids")
+    if DEBUG:
+        print(
+            f"[DEBUG] load_and_sample -> {len(data)} total entries, {len(failures)} failures, {len(unique)} unique task_ids")
     if len(unique) <= sample_size:
         return unique, len(data)
     return random.sample(unique, sample_size), len(data)
@@ -215,7 +231,9 @@ def extract_policy(system_content):
     schemas for every tool. We only send the policy rules section to the
     classifier to save tokens and keep the prompt focused.
     """
-    if DEBUG: print(f"[DEBUG] extract_policy(system_content_len={len(system_content)})")
+    if DEBUG:
+        print(
+            f"[DEBUG] extract_policy(system_content_len={len(system_content)})")
     for marker in ["#Available tools", "# Available tools", "#Available Tools"]:
         if marker in system_content:
             return system_content.split(marker)[0].strip()
@@ -229,7 +247,8 @@ def extract_agent_actions(traj):
       - ACT/ReAct: actions in content as 'Action:\\n{"name": ..., "arguments": ...}'
       - FC (tool-calling): actions in the 'tool_calls' field
     """
-    if DEBUG: print(f"[DEBUG] extract_agent_actions(traj_len={len(traj)})")
+    if DEBUG:
+        print(f"[DEBUG] extract_agent_actions(traj_len={len(traj)})")
     actions = []
     for msg in traj:
         if msg.get("role") != "assistant":
@@ -260,7 +279,8 @@ def extract_agent_actions(traj):
             except json.JSONDecodeError:
                 pass
 
-    if DEBUG: print(f"[DEBUG] extract_agent_actions -> found {len(actions)} actions")
+    if DEBUG:
+        print(f"[DEBUG] extract_agent_actions -> found {len(actions)} actions")
     return actions
 
 
@@ -271,7 +291,9 @@ def format_conversation(traj_messages, max_api_output_len=500):
     not relevant to diagnosing agent errors). Keeps agent <think> tags since those
     show agent reasoning failures. Truncates long API outputs to save tokens.
     """
-    if DEBUG: print(f"[DEBUG] format_conversation(num_messages={len(traj_messages)}, max_api_output_len={max_api_output_len})")
+    if DEBUG:
+        print(
+            f"[DEBUG] format_conversation(num_messages={len(traj_messages)}, max_api_output_len={max_api_output_len})")
     lines = []
     for msg in traj_messages:
         role = msg.get("role", "unknown").upper()
@@ -304,7 +326,9 @@ def format_conversation(traj_messages, max_api_output_len=500):
 
 def format_ground_truth(actions):
     """Format expected actions as readable numbered list."""
-    if DEBUG: print(f"[DEBUG] format_ground_truth(num_actions={len(actions) if actions else 0})")
+    if DEBUG:
+        print(
+            f"[DEBUG] format_ground_truth(num_actions={len(actions) if actions else 0})")
     if not actions:
         return (
             "No actions required — the agent should have refused the request "
@@ -336,7 +360,9 @@ def build_prompt(failure):
     Without ground truth, the classifier would have to guess what "correct"
     looks like and would hallucinate plausible-sounding errors.
     """
-    if DEBUG: print(f"[DEBUG] build_prompt(task_id={failure.get('task_id')}, trial={failure.get('trial', 0)})")
+    if DEBUG:
+        print(
+            f"[DEBUG] build_prompt(task_id={failure.get('task_id')}, trial={failure.get('trial', 0)})")
     traj = failure.get("traj", [])
     task = failure.get("info", {}).get("task", {})
 
@@ -394,7 +420,8 @@ Respond with ONLY valid JSON, nothing else:
 
 def create_client(provider):
     """Initialize API client. Reads key from environment variable."""
-    if DEBUG: print(f"[DEBUG] create_client(provider={provider})")
+    if DEBUG:
+        print(f"[DEBUG] create_client(provider={provider})")
     if provider == "anthropic":
         try:
             from anthropic import Anthropic
@@ -420,7 +447,9 @@ def create_client(provider):
 
 def call_llm(client, provider, model, prompt):
     """Single LLM API call. Returns raw response text."""
-    if DEBUG: print(f"[DEBUG] call_llm(provider={provider}, model={model}, prompt_len={len(prompt)})")
+    if DEBUG:
+        print(
+            f"[DEBUG] call_llm(provider={provider}, model={model}, prompt_len={len(prompt)})")
     if provider == "anthropic":
         response = client.messages.create(
             model=model,
@@ -447,7 +476,9 @@ def parse_response(text):
 
     Tries multiple strategies because LLMs sometimes wrap JSON in markdown code blocks.
     """
-    if DEBUG: print(f"[DEBUG] parse_response(text_len={len(text)}, preview={text[:80]!r})")
+    if DEBUG:
+        print(
+            f"[DEBUG] parse_response(text_len={len(text)}, preview={text[:80]!r})")
     text = text.strip()
 
     # Strategy 1: direct JSON parse
@@ -484,7 +515,9 @@ def parse_response(text):
 
 def classify_one(client, provider, model, failure, delay=0.5):
     """Classify a single failure case. Retries once on API error."""
-    if DEBUG: print(f"[DEBUG] classify_one(provider={provider}, model={model}, task_id={failure.get('task_id')}, delay={delay})")
+    if DEBUG:
+        print(
+            f"[DEBUG] classify_one(provider={provider}, model={model}, task_id={failure.get('task_id')}, delay={delay})")
     prompt = build_prompt(failure)
 
     for attempt in range(2):
@@ -519,7 +552,9 @@ def classify_one(client, provider, model, failure, delay=0.5):
 
 def compute_summary(classifications):
     """Count errors per category with percentages."""
-    if DEBUG: print(f"[DEBUG] compute_summary(num_classifications={len(classifications)})")
+    if DEBUG:
+        print(
+            f"[DEBUG] compute_summary(num_classifications={len(classifications)})")
     counts = defaultdict(int)
     for c in classifications:
         cat = c["classification"]["primary_category"]
@@ -542,7 +577,9 @@ def process_file(filepath, config_name, client, provider, model,
     Supports resuming: if a .partial.json exists from a crashed run, picks up
     where it left off (same seed = same sample = safe to resume).
     """
-    if DEBUG: print(f"[DEBUG] process_file(config={config_name}, file={filepath.name}, provider={provider}, model={model}, sample_size={sample_size}, force={force}, dry_run={dry_run})")
+    if DEBUG:
+        print(
+            f"[DEBUG] process_file(config={config_name}, file={filepath.name}, provider={provider}, model={model}, sample_size={sample_size}, force={force}, dry_run={dry_run})")
     result_path = output_dir / f"{config_name}.json"
     partial_path = output_dir / f"{config_name}.partial.json"
 
@@ -642,7 +679,8 @@ def process_file(filepath, config_name, client, provider, model,
 
 def aggregate_all(all_results):
     """Combine summaries across all configs into one structure for plotting."""
-    if DEBUG: print(f"[DEBUG] aggregate_all(num_configs={len(all_results)})")
+    if DEBUG:
+        print(f"[DEBUG] aggregate_all(num_configs={len(all_results)})")
     combined = {}
     for config_name, result in all_results.items():
         if result and "summary" in result:
@@ -656,7 +694,9 @@ def extract_examples(all_results, n_per_category=5):
     These go into the Phase 2 submission as the required "5 representative
     failure trajectory JSONs per error category."
     """
-    if DEBUG: print(f"[DEBUG] extract_examples(num_configs={len(all_results)}, n_per_category={n_per_category})")
+    if DEBUG:
+        print(
+            f"[DEBUG] extract_examples(num_configs={len(all_results)}, n_per_category={n_per_category})")
     by_category = defaultdict(list)
 
     for config_name, result in all_results.items():
@@ -680,7 +720,9 @@ def extract_examples(all_results, n_per_category=5):
             x["classification"].get("explanation", "")))
         examples[cat] = items[:n_per_category]
 
-    if DEBUG: print(f"[DEBUG] extract_examples -> {len(examples)} categories: {{{', '.join(f'{k}: {len(v)}' for k, v in examples.items())}}}")
+    if DEBUG:
+        print(
+            f"[DEBUG] extract_examples -> {len(examples)} categories: {{{', '.join(f'{k}: {len(v)}' for k, v in examples.items())}}}")
     return examples
 
 
@@ -694,7 +736,9 @@ def generate_plots(combined_summary, plot_dir):
 
     combined_summary = {config_name: {category: {count, percentage}, ...}, ...}
     """
-    if DEBUG: print(f"[DEBUG] generate_plots(num_configs={len(combined_summary)}, plot_dir={plot_dir})")
+    if DEBUG:
+        print(
+            f"[DEBUG] generate_plots(num_configs={len(combined_summary)}, plot_dir={plot_dir})")
     try:
         import matplotlib
         matplotlib.use("Agg")  # no display needed (works on servers)
@@ -878,7 +922,8 @@ def main():
     global DEBUG
     args = parse_args()
     DEBUG = args.debug
-    if DEBUG: print(f"[DEBUG] main(provider={args.provider}, model={args.model}, model_size={args.model_size}, sample_size={args.sample_size}, force={args.force}, dry_run={args.dry_run}, seed={args.seed})")
+    if DEBUG:
+        print(f"[DEBUG] main(provider={args.provider}, model={args.model}, model_size={args.model_size}, sample_size={args.sample_size}, force={args.force}, dry_run={args.dry_run}, seed={args.seed})")
 
     # Resolve paths relative to this script's location.
     # Script lives at:   phase2/error_analysis/classify_errors.py
@@ -892,6 +937,8 @@ def main():
         script_dir / "results"
     )
     model = args.model or DEFAULT_MODELS[args.provider]
+
+    print(f'Gwen3 Model to evaluate: {args.model_size}')
 
     # Discover trajectory files
     print(
